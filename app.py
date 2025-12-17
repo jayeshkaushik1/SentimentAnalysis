@@ -5,25 +5,25 @@ import json
 from transformers import BertTokenizer, BertModel
 
 # --------------------------------------------------
-# Page config
+# Page configuration
 # --------------------------------------------------
 st.set_page_config(
-    page_title="Sentiment Analysis App",
+    page_title="Sentiment Analysis",
     page_icon="💬",
     layout="centered"
 )
 
 st.title("💬 Sentiment Analysis App")
-st.write("BERT [CLS] embeddings + Random Forest classifier")
+st.write("BERT mean-pooled embeddings + Random Forest classifier")
 
 # --------------------------------------------------
-# Load everything (cached)
+# Load models (cached)
 # --------------------------------------------------
 @st.cache_resource
 def load_all():
     device = torch.device("cpu")
 
-    # Load Random Forest model
+    # Load trained Random Forest model
     rf_model = joblib.load("sentiment_rf.pkl")
 
     # Load tokenizer from local files
@@ -48,7 +48,7 @@ def load_all():
 rf_model, tokenizer, bert_model, label_map, device = load_all()
 
 # --------------------------------------------------
-# Prediction function (USES [CLS] TOKEN)
+# Prediction function (MATCHES TRAINING EXACTLY)
 # --------------------------------------------------
 def predict_sentiment(text: str):
     enc = tokenizer(
@@ -64,10 +64,11 @@ def predict_sentiment(text: str):
     with torch.no_grad():
         outputs = bert_model(**enc)
 
-        # 🔥 IMPORTANT FIX: Use [CLS] token embedding
-        emb = outputs.last_hidden_state[:, 0, :]   # shape: (1, 768)
+        # 🔑 SAME AS TRAINING:
+        # out.last_hidden_state.mean(1)
+        emb = outputs.last_hidden_state.mean(1)
 
-    # Convert tensor → Python list (NO numpy)
+    # Convert tensor → Python list (no NumPy dependency)
     emb = emb.cpu().tolist()
 
     pred = rf_model.predict(emb)[0]
@@ -79,7 +80,7 @@ def predict_sentiment(text: str):
 user_text = st.text_area(
     "Enter text:",
     height=150,
-    placeholder="Type a review or sentence here..."
+    placeholder="Type a sentence or review here..."
 )
 
 if st.button("Analyze"):
@@ -95,5 +96,3 @@ if st.button("Analyze"):
             st.error(f"❌ Sentiment: {result}")
         else:
             st.info(f"⚖️ Sentiment: {result}")
-
-
