@@ -1,7 +1,6 @@
 streamlit
-numpy
-joblib
+torch==1.13.1
+transformers==4.31.0
 scikit-learn
-transformers
-torch==1.13.1+cpu
---extra-index-url https://download.pytorch.org/whl/cpu
+joblib
+numpy
