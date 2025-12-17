@@ -4,11 +4,11 @@ import joblib
 import json
 from transformers import BertTokenizer, BertModel
 
-# --------------------
-# Page setup
-# --------------------
+# --------------------------------------------------
+# Page config
+# --------------------------------------------------
 st.set_page_config(
-    page_title="Sentiment Analysis",
+    page_title="Sentiment Analysis App",
     page_icon="💬",
     layout="centered"
 )
@@ -16,9 +16,9 @@ st.set_page_config(
 st.title("💬 Sentiment Analysis App")
 st.write("BERT embeddings + Random Forest classifier")
 
-# --------------------
+# --------------------------------------------------
 # Load models (cached)
-# --------------------
+# --------------------------------------------------
 @st.cache_resource
 def load_all():
     device = torch.device("cpu")
@@ -33,7 +33,7 @@ def load_all():
         special_tokens_map_file="special_tokens_map.json"
     )
 
-    # Load BERT backbone from HuggingFace (NOT local)
+    # Load BERT backbone (downloaded automatically)
     bert = BertModel.from_pretrained("bert-base-uncased")
     bert.to(device)
     bert.eval()
@@ -47,9 +47,9 @@ def load_all():
 
 rf_model, tokenizer, bert_model, label_map, device = load_all()
 
-# --------------------
-# Prediction function
-# --------------------
+# --------------------------------------------------
+# Prediction function (NO numpy used)
+# --------------------------------------------------
 def predict_sentiment(text: str):
     enc = tokenizer(
         text,
@@ -64,14 +64,15 @@ def predict_sentiment(text: str):
     with torch.no_grad():
         emb = bert_model(**enc).last_hidden_state.mean(1)
 
-    emb = emb.cpu().numpy()
-    pred = rf_model.predict(emb)[0]
+    # 🔥 CRITICAL FIX: use list instead of numpy
+    emb = emb.cpu().tolist()
 
+    pred = rf_model.predict(emb)[0]
     return label_map[str(pred)]
 
-# --------------------
+# --------------------------------------------------
 # UI
-# --------------------
+# --------------------------------------------------
 user_text = st.text_area(
     "Enter text:",
     height=150,
@@ -91,3 +92,4 @@ if st.button("Analyze"):
             st.error(f"❌ Sentiment: {result}")
         else:
             st.info(f"⚖️ Sentiment: {result}")
+
