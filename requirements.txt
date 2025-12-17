@@ -1,6 +1,6 @@
 streamlit
+numpy==1.23.5
 torch==1.13.1
 transformers==4.31.0
 scikit-learn
 joblib
-numpy
