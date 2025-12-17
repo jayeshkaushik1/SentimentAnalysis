@@ -14,16 +14,16 @@ st.set_page_config(
 )
 
 st.title("💬 Sentiment Analysis App")
-st.write("BERT embeddings + Random Forest classifier")
+st.write("BERT [CLS] embeddings + Random Forest classifier")
 
 # --------------------------------------------------
-# Load models (cached)
+# Load everything (cached)
 # --------------------------------------------------
 @st.cache_resource
 def load_all():
     device = torch.device("cpu")
 
-    # Load trained Random Forest
+    # Load Random Forest model
     rf_model = joblib.load("sentiment_rf.pkl")
 
     # Load tokenizer from local files
@@ -33,22 +33,22 @@ def load_all():
         special_tokens_map_file="special_tokens_map.json"
     )
 
-    # Load BERT backbone (downloaded automatically)
-    bert = BertModel.from_pretrained("bert-base-uncased")
-    bert.to(device)
-    bert.eval()
+    # Load BERT backbone
+    bert_model = BertModel.from_pretrained("bert-base-uncased")
+    bert_model.to(device)
+    bert_model.eval()
 
     # Load label map
     with open("label_map.json") as f:
         label_map = json.load(f)
 
-    return rf_model, tokenizer, bert, label_map, device
+    return rf_model, tokenizer, bert_model, label_map, device
 
 
 rf_model, tokenizer, bert_model, label_map, device = load_all()
 
 # --------------------------------------------------
-# Prediction function (NO numpy used)
+# Prediction function (USES [CLS] TOKEN)
 # --------------------------------------------------
 def predict_sentiment(text: str):
     enc = tokenizer(
@@ -62,9 +62,12 @@ def predict_sentiment(text: str):
     enc = {k: v.to(device) for k, v in enc.items()}
 
     with torch.no_grad():
-        emb = bert_model(**enc).last_hidden_state.mean(1)
+        outputs = bert_model(**enc)
 
-    # 🔥 CRITICAL FIX: use list instead of numpy
+        # 🔥 IMPORTANT FIX: Use [CLS] token embedding
+        emb = outputs.last_hidden_state[:, 0, :]   # shape: (1, 768)
+
+    # Convert tensor → Python list (NO numpy)
     emb = emb.cpu().tolist()
 
     pred = rf_model.predict(emb)[0]
@@ -76,7 +79,7 @@ def predict_sentiment(text: str):
 user_text = st.text_area(
     "Enter text:",
     height=150,
-    placeholder="Type a review or tweet here..."
+    placeholder="Type a review or sentence here..."
 )
 
 if st.button("Analyze"):
@@ -92,4 +95,5 @@ if st.button("Analyze"):
             st.error(f"❌ Sentiment: {result}")
         else:
             st.info(f"⚖️ Sentiment: {result}")
+
 
